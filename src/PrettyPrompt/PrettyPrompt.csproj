@@ -1,19 +1,28 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>4.1.1</Version>
+    <!-- Custom fork identification -->
+    <AssemblyName>PrettyPrompt.Fork</AssemblyName>
+    <RootNamespace>PrettyPromptFork</RootNamespace>
+    <PackageId>PrettyPrompt.Fork</PackageId>
+    <Version>4.1.1-fork</Version>
 
-    <PackageId>PrettyPrompt</PackageId>
-    <PackageTags>repl readline console cli</PackageTags>
-    <PackageProjectUrl>https://github.com/waf/PrettyPrompt</PackageProjectUrl>
+    <!-- Optional metadata (harmless if unused locally) -->
+    <PackageTags>repl readline console cli fork grimoire</PackageTags>
+    <PackageProjectUrl>https://github.com/sade54/PrettyPrompt</PackageProjectUrl>
     <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
-
-    <Description>A command line prompt (i.e. a Console.ReadLine replacement) that provides syntax highlighting, autocomplete menus, history, and multi-line input.</Description>
-    <RepositoryUrl>https://github.com/waf/PrettyPrompt</RepositoryUrl>
+    <Description>Forked version of PrettyPrompt for the Grimoire assistant.</Description>
+    <RepositoryUrl>https://github.com/sade54/PrettyPrompt</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <Authors>Will Fuqua</Authors>
-    <Company />
+    <Authors>Your Name</Authors>
 
+    <!-- Build configuration -->
+    <TargetFramework>net8.0</TargetFramework> <!-- tu peux ajuster selon Grimoire -->
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <OutputType>Library</OutputType>
+
+    <!-- Debug & symbols -->
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -21,27 +30,9 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <OutputType>Library</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="TextCopy" Version="6.2.1" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
   </ItemGroup>
 
-  <ItemGroup>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>PrettyPrompt.Tests</_Parameter1>
-    </AssemblyAttribute>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>DynamicProxyGenAssembly2</_Parameter1>
-    </AssemblyAttribute>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>PrettyPrompt.Benchmarks</_Parameter1>
-    </AssemblyAttribute>
-  </ItemGroup>
 </Project>
