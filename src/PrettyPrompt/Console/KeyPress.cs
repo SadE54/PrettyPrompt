@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 
 namespace PrettyPrompt.Consoles;
 
@@ -57,45 +58,59 @@ public class KeyPress
         PastedText = pastedText;
     }
 
-    internal static IEnumerable<KeyPress> ReadForever(IConsole console)
+    internal static IEnumerable<KeyPress> ReadForever(IConsole console, CancellationToken cancellationToken = default)
     {
         while (true)
         {
-            var key = console.ReadKey(true);
-
             if (!console.KeyAvailable)
             {
-                yield return new KeyPress(key);
-                continue;
-            }
-
-            // If the user pastes text, we see it as a bunch of key presses. We don't want to send
-            // them all individually, as it will trigger syntax highlighting and potentially intellisense
-            // for each key press, which is slow. Instead, batch them up to send as single "pasted text" block.
-            var keys = ReadRemainingKeys(console, key);
-
-            if (key.Key == ConsoleKey.Escape)
-            {
-                if (MapInputEscapeSequence(keys) is KeyPress ansiEscapedInput)
+                Thread.Sleep(10);
+                if (cancellationToken.IsCancellationRequested)
                 {
-                    yield return ansiEscapedInput;
-                }
-            }
-            else if (keys.Count < 4 || keys.All(k => char.IsControl(k.KeyChar))) // 4 is not special here, just seemed like a decent number to separate
-                                                                                 // between "keys pressed simultaneously" and "pasted text"
-            {
-                foreach (var consoleKey in keys)
-                {
-                    yield return new KeyPress(consoleKey);
+                    yield return new KeyPress(
+                        ConsoleKey.Escape.ToKeyInfo('\0', control: true),
+                        pastedText: "\u001b" // Escape character
+                    );
                 }
             }
             else
             {
-                // we got a bunch of keypresses, send them as a paste event (Shift+Insert)
-                yield return new KeyPress(
-                    ConsoleKey.Insert.ToKeyInfo('\0', shift: true),
-                    pastedText: new string(keys.Select(k => k.KeyChar).ToArray())
-                );
+                var key = console.ReadKey(true);
+
+                if (!console.KeyAvailable)
+                {
+                    yield return new KeyPress(key);
+                    continue;
+                }
+
+                // If the user pastes text, we see it as a bunch of key presses. We don't want to send
+                // them all individually, as it will trigger syntax highlighting and potentially intellisense
+                // for each key press, which is slow. Instead, batch them up to send as single "pasted text" block.
+                var keys = ReadRemainingKeys(console, key);
+
+                if (key.Key == ConsoleKey.Escape)
+                {
+                    if (MapInputEscapeSequence(keys) is KeyPress ansiEscapedInput)
+                    {
+                        yield return ansiEscapedInput;
+                    }
+                }
+                else if (keys.Count < 4 || keys.All(k => char.IsControl(k.KeyChar))) // 4 is not special here, just seemed like a decent number to separate
+                                                                                     // between "keys pressed simultaneously" and "pasted text"
+                {
+                    foreach (var consoleKey in keys)
+                    {
+                        yield return new KeyPress(consoleKey);
+                    }
+                }
+                else
+                {
+                    // we got a bunch of keypresses, send them as a paste event (Shift+Insert)
+                    yield return new KeyPress(
+                        ConsoleKey.Insert.ToKeyInfo('\0', shift: true),
+                        pastedText: new string(keys.Select(k => k.KeyChar).ToArray())
+                    );
+                }
             }
         }
     }

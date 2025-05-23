@@ -32,13 +32,14 @@ public sealed class Prompt : IPrompt, IAsyncDisposable
     private readonly IPromptCallbacks promptCallbacks;
     private Task? savePersistentHistoryTask;
 
-    /// <summary>
-    /// Instantiates a prompt object. This object can be re-used for multiple invocations of <see cref="ReadLineAsync()"/>.
-    /// </summary>
-    /// <param name="persistentHistoryFilepath">The filepath of where to store history entries. If null, persistent history is disabled.</param>
-    /// <param name="callbacks">A collection of callbacks for modifying and intercepting the prompt's behavior</param>
-    /// <param name="console">The implementation of the console to use. This is mainly for ease of unit testing</param>
+
+    /// Instantiates a prompt object. This object can be re-used for multiple invocations of <see cref="IPrompt.ReadLineAsync"/>.  
+    /// <summary>  
+    /// <param name="persistentHistoryFilepath">The filepath of where to store history entries. If null, persistent history is disabled.</param>  
+    /// <param name="callbacks">A collection of callbacks for modifying and intercepting the prompt's behavior</param>  
+    /// <param name="console">The implementation of the console to use. This is mainly for ease of unit testing</param>  
     /// <param name="configuration">If null, default configuration is used.</param>
+    /// </summary>
     public Prompt(
         string? persistentHistoryFilepath = null,
         PromptCallbacks? callbacks = null,
@@ -57,8 +58,8 @@ public sealed class Prompt : IPrompt, IAsyncDisposable
         this.highlighter = new SyntaxHighlighter(promptCallbacks, PromptConfiguration.HasUserOptedOutFromColor);
     }
 
-    /// <inheritdoc cref="IPrompt.ReadLineAsync()" />
-    public async Task<PromptResult> ReadLineAsync()
+    /// <inheritdoc cref="IPrompt.ReadLineAsync" />
+    public async Task<PromptResult> ReadLineAsync(CancellationToken cancellationToken = default)
     {
         using var renderer = new Renderer(console, configuration);
 
@@ -82,13 +83,19 @@ public sealed class Prompt : IPrompt, IAsyncDisposable
 
         history.Track(codePane);
         cancellationManager.CaptureControlC();
-
-        foreach (var key in KeyPress.ReadForever(console))
+        
+        foreach (var key in KeyPress.ReadForever(console, cancellationToken))
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                // if the user pressed ctrl-c, we want to cancel the current prompt.
+                // this will cause the prompt to return a result with IsSuccess = false.
+                return new PromptResult(false, string.Empty, key.ConsoleKeyInfo);
+            }
             // grab the code area width every key press, so we rerender appropriately when the console is resized.
             codePane.MeasureConsole();
 
-            await InterpretKeyPress(key, cancellationToken: default).ConfigureAwait(false);
+            await InterpretKeyPress(key, cancellationToken).ConfigureAwait(false);
 
             // typing / word-wrapping may have scrolled the console, giving us more room.
             codePane.MeasureConsole();
@@ -97,7 +104,7 @@ public sealed class Prompt : IPrompt, IAsyncDisposable
             var inputText = codePane.Document.GetText();
 
             // the key press may have caused the prompt to return its input (e.g. <Enter>) or fired a configured callback.
-            var result = await HandleKeyPressAction(codePane, key, inputText, cancellationToken: default).ConfigureAwait(false);
+            var result = await HandleKeyPressAction(codePane, key, inputText, cancellationToken).ConfigureAwait(false);
 
             switch(result)
             {
@@ -109,13 +116,13 @@ public sealed class Prompt : IPrompt, IAsyncDisposable
                 case StreamingInputCallbackResult customCompletion:
                     completionPane.IsOpen = false;
                     overloadPane.IsOpen = false;
-                    var updates = codePane.Document.InsertAtCaretAsync(codePane, customCompletion.StreamingInput).GetAsyncEnumerator();
+                    var updates = codePane.Document.InsertAtCaretAsync(codePane, customCompletion.StreamingInput).GetAsyncEnumerator(cancellationToken);
                     while(await updates.MoveNextAsync().ConfigureAwait(false))
                     {
                         await RenderSyntaxHighlightedOutput(renderer, codePane, overloadPane, completionPane, key, codePane.Document.GetText(), null).ConfigureAwait(false);
                     }
                     break;
-                // user submitted the prompt, or a keybinding submitted the prompt
+                // user submitted the prompt, or a key binding submitted the prompt
                 case PromptResult or KeyPressCallbackResult:
                     await RenderSyntaxHighlightedOutput(renderer, codePane, overloadPane, completionPane, key, inputText, result).ConfigureAwait(false);
                     //wait for potential previous saving
@@ -236,7 +243,7 @@ public interface IPrompt
     /// Prompts the user for input and returns the result.
     /// </summary>
     /// <returns>The input that the user submitted</returns>
-    Task<PromptResult> ReadLineAsync();
+    Task<PromptResult> ReadLineAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>
